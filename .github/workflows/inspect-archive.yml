@@ -1,0 +1,71 @@
+name: Inspect ZIP archive
+
+on:
+  push:
+    paths:
+      - ".github/workflows/inspect-archive.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify archive exists
+        run: test -f "Ejshwuwy6w-main.zip"
+
+      - name: Inspect and safely extract archive
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, zipfile, stat
+
+          archive = pathlib.Path("Ejshwuwy6w-main.zip")
+          target = pathlib.Path("work/unpacked").resolve()
+          target.mkdir(parents=True, exist_ok=True)
+
+          with zipfile.ZipFile(archive) as z:
+              infos = z.infolist()
+              print(f"Archive: {archive.name}")
+              print(f"Entries: {len(infos)}")
+              for info in infos:
+                  p = pathlib.PurePosixPath(info.filename)
+                  mode = info.external_attr >> 16
+                  if p.is_absolute() or ".." in p.parts:
+                      raise SystemExit(f"Unsafe archive path rejected: {info.filename}")
+                  if stat.S_ISLNK(mode):
+                      raise SystemExit(f"Symlink entry rejected: {info.filename}")
+                  dest = (target / pathlib.Path(*p.parts)).resolve()
+                  if target not in dest.parents and dest != target:
+                      raise SystemExit(f"Path escapes extraction directory: {info.filename}")
+                  print(f"{info.file_size:>10} bytes  {info.filename}")
+              z.extractall(target)
+
+          print("\nExtracted directory tree:")
+          for p in sorted(target.rglob("*")):
+              rel = p.relative_to(target)
+              print(("DIR " if p.is_dir() else "FILE") + " " + str(rel))
+          PY
+
+      - name: Show build manifests (without executing project code)
+        shell: bash
+        run: |
+          find work/unpacked -type f \(
+            -name package.json -o -name pyproject.toml -o -name requirements.txt \
+            -o -name Makefile -o -name CMakeLists.txt -o -name Cargo.toml \
+            -o -name pom.xml -o -name build.gradle -o -name build.gradle.kts \
+            -o -name '*.sln' -o -name '*.csproj' -o -name README.md \
+          \) -print -exec sh -c 'echo "----- $1"; sed -n "1,240p" "$1"' _ {} \;
+
+      - name: Save inspection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zip-inspection-report
+          path: work/unpacked/
+          if-no-files-found: warn
