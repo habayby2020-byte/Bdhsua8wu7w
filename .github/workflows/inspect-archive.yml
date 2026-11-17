@@ -1,4 +1,4 @@
-name: Inspect ZIP archive
+name: Extract ZIP permanently
 
 on:
   push:
@@ -7,27 +7,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  extract:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
-      - name: Verify archive exists
-        run: test -f "Ejshwuwy6w-main.zip"
-
-      - name: Inspect and safely extract archive
+      - name: Verify and safely extract archive
         shell: bash
         run: |
           python3 - <<'PY'
           import pathlib, zipfile, stat
 
           archive = pathlib.Path("Ejshwuwy6w-main.zip")
-          target = pathlib.Path("work/unpacked").resolve()
-          target.mkdir(parents=True, exist_ok=True)
+          staging = pathlib.Path("work/unpacked").resolve()
+          staging.mkdir(parents=True, exist_ok=True)
 
           with zipfile.ZipFile(archive) as z:
               infos = z.infolist()
@@ -40,34 +39,30 @@ jobs:
                       raise SystemExit(f"Unsafe archive path rejected: {info.filename}")
                   if stat.S_ISLNK(mode):
                       raise SystemExit(f"Symlink entry rejected: {info.filename}")
-                  dest = (target / pathlib.Path(*p.parts)).resolve()
-                  if target not in dest.parents and dest != target:
+                  dest = (staging / pathlib.Path(*p.parts)).resolve()
+                  if staging not in dest.parents and dest != staging:
                       raise SystemExit(f"Path escapes extraction directory: {info.filename}")
-                  print(f"{info.file_size:>10} bytes  {info.filename}")
-              z.extractall(target)
+              z.extractall(staging)
 
-          print("\\nExtracted directory tree:")
-          for p in sorted(target.rglob("*")):
-              rel = p.relative_to(target)
-              print(("DIR " if p.is_dir() else "FILE") + " " + str(rel))
+          project = staging / "Ejshwuwy6w-main"
+          if not project.is_dir():
+              raise SystemExit("Expected top-level folder Ejshwuwy6w-main was not found")
+          destination = pathlib.Path("Ejshwuwy6w-main")
+          if destination.exists():
+              raise SystemExit("Destination Ejshwuwy6w-main already exists; refusing to overwrite it")
+          import shutil
+          shutil.copytree(project, destination)
+          files = [p for p in destination.rglob("*") if p.is_file()]
+          print(f"Persisted extraction prepared: {len(files)} files")
+          for p in sorted(files):
+              print(p)
           PY
 
-      - name: Show build manifests (without executing project code)
+      - name: Commit extracted project into repository
         shell: bash
         run: |
-          while IFS= read -r file; do
-            case "$file" in
-              */package.json|*/pyproject.toml|*/requirements.txt|*/Makefile|*/CMakeLists.txt|*/Cargo.toml|*/pom.xml|*/build.gradle|*/build.gradle.kts|*.sln|*.csproj|*/README.md)
-                echo "----- $file"
-                sed -n '1,240p' "$file"
-                ;;
-            esac
-          done < <(find work/unpacked -type f -print)
-
-      - name: Save inspection report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zip-inspection-report
-          path: work/unpacked/
-          if-no-files-found: warn
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "Ejshwuwy6w-main"
+          git commit -m "Extract project archive into repository"
+          git push origin HEAD:main
