@@ -6,7 +6,7 @@
 export default function App() {
   const search = typeof window !== 'undefined' ? window.location.search : '';
 
-  function applyRequestedUi(event: React.SyntheticEvent<HTMLIFrameElement>) {
+  function applyRequestedUi(event: { currentTarget: HTMLIFrameElement }) {
     try {
       const doc = event.currentTarget.contentDocument;
       if (!doc || doc.getElementById('privacyFooter')) return;
@@ -17,7 +17,7 @@ export default function App() {
       const style = doc.createElement('style');
       style.textContent = `
         #privacyFooter{width:min(100% - 28px,900px);margin:30px auto 18px;padding:18px 12px;text-align:center;border-top:1px solid rgba(255,255,255,.14)}
-        #privacyBtn{border:1px solid rgba(255,209,102,.48);border-radius:12px;padding:11px 24px;background:rgba(255,209,102,.09);color:#ffdf91;font:800 14px inherit;cursor:pointer}
+        #privacyBtn{border:1px solid rgba(255,209,102,.48);border-radius:12px;padding:11px 24px;background:rgba(255,209,102,.09);color:#ffdf91;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}
         #privacyModal{display:none;position:fixed;inset:0;z-index:1200;background:rgba(7,3,13,.9);backdrop-filter:blur(6px);overflow-y:auto;padding:44px 16px 24px}
         #privacyModal.show{display:flex;align-items:flex-start;justify-content:center}
         #privacyModal .privacyCard{width:100%;max-width:560px;margin:auto;background:linear-gradient(180deg,#241242,#170a2b);border:1px solid rgba(255,209,102,.38);border-radius:20px;padding:22px;color:#fff;line-height:1.9}
