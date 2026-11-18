@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Rocket_Soccer-6.html"
+      - ".github/workflows/build-apk.yml"
+      - "app/**"
+      - "build.gradle"
+      - "settings.gradle"
+      - "gradle.properties"
+      - "public/مكتبة_الألعاب-2.html"
+      - "*.html"
+      - "prepared-games/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Prepare complete game library in Android assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets
+          test -s "public/مكتبة_الألعاب-2.html"
+          cp "public/مكتبة_الألعاب-2.html" app/src/main/assets/game-library.html
+          find . -maxdepth 1 -type f -name '*.html' -exec cp -f {} app/src/main/assets/ \;
+          if [ -d prepared-games ]; then
+            cp -R prepared-games app/src/main/assets/prepared-games
+          fi
+          if [ -d public/assets ]; then
+            cp -R public/assets app/src/main/assets/public-assets
+          fi
+          echo "HTML files packaged:"
+          find app/src/main/assets -type f | sort
+          test -s app/src/main/assets/game-library.html
+          test -s app/src/main/assets/Rocket_Soccer-6.html
+
+      - name: Build debug APK
+        run: gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK output
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
+          sha256sum "$APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Layali-Riyadh-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
