@@ -161,10 +161,14 @@ function startTv(){
     `<div style="font-size:64px;font-weight:bold;letter-spacing:10px;font-family:Arial,sans-serif">${code}</div></div>`+
     `<div style="font-size:14px;opacity:.6">ليالي الرياض — اكتب الرمز من جوالك للدخول</div>`;
   const badge=document.createElement('div');
-  badge.style.cssText='position:absolute;top:14px;right:18px;z-index:21;text-align:left;font-family:Tajawal,Arial,sans-serif;'+
-    'background:#190d26cc;border:1px solid #ffd16655;border-radius:12px;padding:8px 14px;font-size:13px;color:#ffd166';
-  badge.innerHTML = `كود الغرفة: <b style="font-size:16px;letter-spacing:2px">${code}</b>`+
-    `<div style="font-size:10px;color:#ffffffaa;margin-top:3px">ليالي الرياض</div>`;
+  badge.id='roomCodeBadge';
+  badge.style.cssText='position:fixed;top:18px;right:18px;z-index:2147483647;display:flex;flex-direction:column;align-items:center;gap:5px;'+
+    'text-align:center;font-family:Tajawal,Arial,sans-serif;background:rgba(25,13,38,.97);'+
+    'border:3px solid #ffd166;border-radius:18px;box-shadow:0 4px 22px rgba(0,0,0,.75);'+
+    'padding:12px 22px;min-width:190px;font-size:20px;line-height:1.25;color:#ffd166;pointer-events:none;direction:rtl';
+  badge.innerHTML = '<span style="font-size:20px;font-weight:800">رمز الغرفة</span>'+
+    '<b style="font-size:38px;letter-spacing:7px;line-height:1.1;color:#fff">'+code+'</b>'+
+    '<span style="font-size:13px;color:#ffffffdd">ليالي الرياض</span>';
   document.getElementById('tvRoot').appendChild(badge);
   setInterval(broadcastState, 150);
   try{ bootGame(); }catch(err){ console.error('bootGame failed', err); }
